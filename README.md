@@ -2,6 +2,8 @@
 
 Upload a CSV file and plot a histogram from one of its columns.
 
+![preview](preview.png)
+
 ## Installation
 
 Clone the repository and install the dependencies:
