@@ -1,14 +1,8 @@
-using GenieFramework, DataFrames, CSV
+using GenieFramework, DataFrames, CSV, PlotlyBase
 @genietools
 
-Genie.config.cors_headers["Access-Control-Allow-Origin"] = "*"
-Genie.config.cors_headers["Access-Control-Allow-Headers"] = "Content-Type"
-Genie.config.cors_headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
-Genie.config.cors_allowed_origins = ["*"]
-
-const FILE_PATH = "upload"
+const FILE_PATH = joinpath("public", "uploads")
 mkpath(FILE_PATH)
-
 
 @app begin
     @out title = "CSV Analysis"
@@ -16,34 +10,45 @@ mkpath(FILE_PATH)
     @in selected_file = "iris.csv"
     @in selected_column = "petal.length"
     @out columns = ["petal.length", "petal.width", "sepal.length", "sepal.width", "variety"]
-    @out irisplot = PlotData()
-    @onchange isready, selected_file, selected_column begin
+    @out trace = [histogram()]
+    @out layout = PlotlyBase.Layout(yaxis_title_text="Count",xaxis_title_text="Value")
+    @private data = DataFrame()
+
+    @onchange fileuploads begin
+        @show fileuploads
+        if ! isempty(fileuploads)
+            @info "File was uploaded: " fileuploads
+            notify(__model__,"File was uploaded: $(fileuploads)")
+            filename = fileuploads["name"]
+
+            try
+                isdir(FILE_PATH) || mkpath(FILE_PATH)
+                mv(fileuploads["path"], joinpath(FILE_PATH, filename), force=true)
+            catch e
+                @error "Error processing file: $e"
+                notify(__model__,"Error processing file: $(fileuploads["name"])")
+            end
+
+            fileuploads = Dict{AbstractString,AbstractString}()
+        end
         upfiles = readdir(FILE_PATH)
+    end
+
+    @event rejected begin
+        @info "rejected"
+        notify(__model__, "Please upload a valid file")
+    end
+
+    @onchange isready,selected_file begin
         data = CSV.read(joinpath(FILE_PATH, selected_file), DataFrame)
         columns = names(data)
-        datatable = DataTable(data)
-        if selected_column in names(data)
-            irisplot = PlotData(x=data[!, selected_column], plot=StipplePlotly.Charts.PLOT_TYPE_HISTOGRAM)
-        end
     end
-    @event :uploaded begin
-        println("New file uploaded")
-        upfiles = readdir(FILE_PATH)
-    end
-end
 
-route("/", method=POST) do
-    files = Genie.Requests.filespayload()
-    for f in files
-        write(joinpath(FILE_PATH, f[2].name), f[2].data)
+    @onchange isready, selected_column begin
+        trace = [histogram(x=data[!, selected_column])]
     end
-    if length(files) == 0
-        @info "No file uploaded"
-    end
-    upfiles = readdir(FILE_PATH)
-    return "Upload finished"
+
 end
 
 
 @page("/", "ui.jl")
-Server.isrunning() || Server.up()
