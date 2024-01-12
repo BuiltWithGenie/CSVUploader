@@ -1,4 +1,4 @@
-[
+
  heading("{{title}}")
  row([
       cell(class="col-md-12", [
@@ -43,4 +43,3 @@ row([
           ]
          )
     ])
-]
