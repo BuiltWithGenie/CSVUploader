@@ -1,4 +1,4 @@
-## Histogram demo
+## CSV uploader demo
 
 Upload a CSV file and plot a histogram from one of its columns.
 
